@@ -1,3 +1,5 @@
+package Model::Counter;
+
 use Moose;
 
 has 'save_file' => (
@@ -8,13 +10,14 @@ has 'save_file' => (
 sub count_up{
 	my $self = shift;
 	
-	open(CFH,">>+",$self->save_file);
+	open(CFH,"+<",$self->save_file) or die("Failed to open counter log");
 	flock(CFH,2);
 	my $count=<CFH>;
-	seek(CFH,0,0);
-	truncate(CFH,0);
 	$count++;
+	truncate(CFH,0);
+	seek(CFH,0,0);
 	print CFH $count;
+	flock(CFH,8);
 	close(CFH);
 
 	return $count;

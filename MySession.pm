@@ -14,12 +14,6 @@ has 'sess' => (
 	isa => 'Maybe[CGI::Session]',
 );
 
-has 'params' => (
-	is => 'rw',
-	isa => 'HashRef[Item]',
-	builder => '_build_params',
-);
-
 has 'dir' => (
 	is => 'ro',
 	isa => 'Str',
@@ -45,11 +39,6 @@ sub BUILDARGS {
 		);
 		$sess->expire($args{expire});
 
-		my $params = $args{cgi}->Vars;
-		for(keys $params){
-			$sess->param($_,$params->{$_});
-		}
-
 		$args{params} = $sess->param_hashref;
 		$args{sess} = $sess;
 
@@ -63,7 +52,6 @@ sub header{
 
 	return $self->sess->header(-charset => 'utf-8');
 }
-
 
 sub flush {
 	my ($self) = @_;

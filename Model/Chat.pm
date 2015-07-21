@@ -1,28 +1,32 @@
+package Model::Chat;
+
 use Moose;
 use Time::Piece;
 
 has 'save_file' => (
-	is => 'ro'
+	is => 'ro',
 	isa => 'Str',
 );
 has 'id' => (
 	is => 'ro',
-	isa => 'Str'
+	isa => 'Str',
 );
 
 sub rw_log{
 	my ($self,$msg) = @_;
 	
-	open(LFH,"<",$self->save_file);
+	open(LFH,"<",$self->save_file) or die("Failed to open chat log");
 	flock(LFH,1);
 	my @raw = <LFH>;
 	close(LFH);
 
-	my $data,$last;
-	foreach $lines (@raw){
+	my $last;
+	my $data=[];
+	foreach my $lines (@raw){
 		my ($id,$time,$msg) = split(/<>/,$lines);
-		push($data,[$msg,Time::Piece->strptime($time,"%s")]);
+		$msg =~ s/\n$//g;
 
+		push($data,[$msg,Time::Piece->strptime($time+32400,"%s")]);
 		if(defined($msg)){
 			if($self->id eq $id){
 				$last = {
@@ -34,18 +38,25 @@ sub rw_log{
 		}
 	}
 
-	if(defined($msg)){
-		unless($last->{'msg'} eq $msg){
-			$msg =~ s/<.+?>//g;
+	$msg =~ s/&/&amp;/g;
+	$msg =~ s/</&lt;/g;
+	$msg =~ s/>/&gt;/g;
+	$msg =~ s/[\n|\r]//g;
 
-			open(LFH,"+>>",$self->save_file);
-			flock(LFH,2);
-			my $lt=localtime;
-			print LFH <<"EOF";
-@{[$self->id]}<>@{[$lt->epoch]}<>$msg
+	unless(defined($last->{'msg'})){
+		$last->{'msg'} = "<>";	
+	}
+
+	unless($msg eq $last->{'msg'} || $msg eq ''){
+
+		open(LFH,">>",$self->save_file);
+		flock(LFH,2);
+		my $lt=localtime;
+		print LFH <<"EOF";
+@{[$self->id]}<>@{[$lt->epoch]}<>@{[$msg]}
 EOF
-			close(LFH);
-		}
+		close(LFH);
+		push($data,[$msg,$lt])
 	}
 
 	return $data;
