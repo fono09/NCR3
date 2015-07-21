@@ -10,7 +10,8 @@ Dependencies and Setup
 * Time::Piece
 * Setup
  - $ mkdir tmp
- - $ touch $set->{'counter\_file'}
- - $ touch $set->{'log\_file'}
+ - $ vi count2.cgi
+ - $ touch counter.cgi
+ - $ touch log.cgi
 
 
