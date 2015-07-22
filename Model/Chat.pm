@@ -7,13 +7,24 @@ has 'save_file' => (
 	is => 'ro',
 	isa => 'Str',
 );
+
 has 'id' => (
 	is => 'ro',
 	isa => 'Str',
 );
 
+has 'seq' => (
+	is => 'ro',
+	isa => 'Int',
+);
+
+has 'msg' => (
+	is => 'rw',
+	isa => 'Maybe[Str]',
+);
+
 sub rw_log{
-	my ($self,$msg) = @_;
+	my ($self) = @_;
 	
 	open(LFH,"<",$self->save_file) or die("Failed to open chat log");
 	flock(LFH,1);
@@ -23,11 +34,16 @@ sub rw_log{
 	my $last;
 	my $data=[];
 	foreach my $lines (@raw){
-		my ($id,$time,$msg) = split(/<>/,$lines);
+		my ($id,$seq,$time,$msg) = split(/<>/,$lines);
 		$msg =~ s/\n$//g;
 
-		push($data,[$msg,Time::Piece->strptime($time+32400,"%s")]);
-		if(defined($msg)){
+		push($data,{
+				seq=>$seq,
+				msg=>$msg,
+				timestamp=>Time::Piece->strptime($time+32400,"%s")
+			}
+		);
+		if(defined($self->msg)){
 			if($self->id eq $id){
 				$last = {
 					id => $id,
@@ -38,27 +54,34 @@ sub rw_log{
 		}
 	}
 
-	$msg =~ s/&/&amp;/g;
-	$msg =~ s/</&lt;/g;
-	$msg =~ s/>/&gt;/g;
-	$msg =~ s/[\n|\r]//g;
+	my $new_msg = $self->msg;
+
+	$new_msg =~ s/&/&amp;/g;
+	$new_msg =~ s/</&lt;/g;
+	$new_msg =~ s/>/&gt;/g;
+	$new_msg =~ s/[\n|\r]//g;
 
 	unless(defined($last->{'msg'})){
 		$last->{'msg'} = "<>";	
 	}
 
-	unless($msg eq $last->{'msg'} || $msg eq ''){
+	unless($new_msg eq $last->{'msg'} || $new_msg eq ''){
 
 		open(LFH,">>",$self->save_file);
 		flock(LFH,2);
 		my $lt=localtime;
 		print LFH <<"EOF";
-@{[$self->id]}<>@{[$lt->epoch]}<>@{[$msg]}
+@{[$self->id]}<>@{[$self->seq]}<>@{[$lt->epoch]}<>@{[$new_msg]}
 EOF
 		close(LFH);
-		push($data,[$msg,$lt])
-	}
+		push($data,{
+				seq=>$self->seq,
+				msg=>$new_msg,
+				timestamp=>$lt
+			}
+		);
 
+	}
 	return $data;
 }
 	

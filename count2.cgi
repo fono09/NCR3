@@ -10,9 +10,6 @@ use Time::Piece;
 
 use Data::Dumper;
 
-=pod
-ここで設定する
-=cut
 my $set={};
 $set->{'count_file'} = "./count.cgi";
 $set->{'log_file'} = "./log.cgi";
@@ -21,14 +18,19 @@ my $ms = MySession->new(
 	dir => './tmp',
 	expire => '+1h'
 );
-$ms->flush;
 
 my $counter = Model::Counter->new(
 	save_file => $set->{'count_file'},
 );
+my $cnt = $counter->count_up;
+
+my $cgi_params = $ms->cgi->Vars;
+
 my $chat = Model::Chat->new(
 	save_file => $set->{'log_file'},
+	seq => $cnt,
 	id => $ms->sess->id,
+	msg => $cgi_params->{'message'},
 );
 
 my $tx_buff .= $ms->header;
@@ -37,16 +39,16 @@ $tx_buff .= << "EOF";
 <html>
 <head>
 <meta charset="UTF-8">
-<title>なんか具合にチャット</title>
+<title>なんかいい具合にチャット</title>
 </head>
 <body>
 <h1>なんかいい具合にチャット</h1>
-<p>貴方は@{[$counter->count_up]}人目です</p>
+<p>貴方は$cnt人目です</p>
 <div><pre>
 EOF
-my $data = $chat->rw_log($ms->cgi->Vars->{'message'});
-for(@$data){ 
-	$tx_buff .= '<p>'.$_->[0].'('.$_->[1]->ymd.','.$_->[1]->hms.')</p>';
+my $log = $chat->rw_log($ms->cgi->Vars->{'message'});
+for(@$log){
+	$tx_buff .= '<p>['.$_->{'seq'}.']'.$_->{'msg'}.'('.$_->{'timestamp'}->ymd.','.$_->{'timestamp'}->hms.')</p>';
 }
 
 $tx_buff .= <<"EOF";
